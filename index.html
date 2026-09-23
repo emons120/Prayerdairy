@@ -1,0 +1,226 @@
+import { useState, useEffect } from 'react';
+import { 
+  BookHeart, 
+  Plus, 
+  Trash2, 
+  CheckCircle, 
+  Clock, 
+  Heart, 
+  Sparkles, 
+  Lock, 
+  Volume2, 
+  Download, 
+  X,
+  FileText
+} from 'lucide-react';
+
+export interface PrayerDiaryEntry {
+  id: string;
+  date: string;
+  hardshipTitle: string;
+  feeling: string;
+  myDuaAndIntention: string;
+  hopeLevel: 'growing' | 'firm' | 'patient';
+  answeredStatus: 'praying' | 'relieved' | 'answered';
+  pinnedAyahOrDua?: string;
+}
+
+const STORAGE_KEY = 'rahmah_prayer_diary_entries_v1';
+
+export default function PrayerDiary() {
+  const [entries, setEntries] = useState<PrayerDiaryEntry[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [
+      {
+        id: 'sample-1',
+        date: 'আজ বাদ আসর',
+        hardshipTitle: 'জীবনের দিকনির্দেশনা ও ভবিষ্যতের চিন্তা',
+        feeling: 'কিছুটা উদ্বেগ ও মানসিক চাপ অনুভব করছি, তবে আল্লাহর পরিকল্পনার ওপর ভরসা আছে।',
+        myDuaAndIntention: 'হে আল্লাহ! আমার সব পেরেশানি দূর করে দিন এবং যা আমার জন্য কল্যাণকর তা সহজ করে দিন। আমি নিরাশ হব না।',
+        hopeLevel: 'firm',
+        answeredStatus: 'praying',
+        pinnedAyahOrDua: '“হাসবুনাল্লাহু ওয়া নি’মাল ওয়াকিল” (আল্লাহই যথেষ্ট)',
+      },
+    ];
+  });
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [readingEntryId, setReadingEntryId] = useState<string | null>(null);
+
+  // Form states
+  const [hardshipTitle, setHardshipTitle] = useState('');
+  const [feeling, setFeeling] = useState('');
+  const [myDuaAndIntention, setMyDuaAndIntention] = useState('');
+  const [hopeLevel, setHopeLevel] = useState<'growing' | 'firm' | 'patient'>('firm');
+  const [pinnedAyahOrDua, setPinnedAyahOrDua] = useState('“আজ পরিস্থিতি কঠিন হতে পারে, কিন্তু আল্লাহর রহমত তার চেয়েও বড়”');
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  }, [entries]);
+
+  const handleCreateEntry = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!hardshipTitle.trim() || !myDuaAndIntention.trim()) return;
+
+    const newEntry: PrayerDiaryEntry = {
+      id: 'entry-' + Date.now(),
+      date: new Date().toLocaleDateString('bn-BD', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        weekday: 'long',
+      }),
+      hardshipTitle: hardshipTitle.trim(),
+      feeling: feeling.trim() || 'আল্লাহর দরবারে আরজি পেশ করেছি',
+      myDuaAndIntention: myDuaAndIntention.trim(),
+      hopeLevel,
+      answeredStatus: 'praying',
+      pinnedAyahOrDua: pinnedAyahOrDua.trim(),
+    };
+
+    setEntries([newEntry, ...entries]);
+    setHardshipTitle('');
+    setFeeling('');
+    setMyDuaAndIntention('');
+    setIsModalOpen(false);
+  };
+
+  const handleDelete = (id: string) => {
+    setEntries(entries.filter((item) => item.id !== id));
+  };
+
+  const toggleStatus = (id: string) => {
+    setEntries(
+      entries.map((item) => {
+        if (item.id !== id) return item;
+        const nextStatus =
+          item.answeredStatus === 'praying'
+            ? 'relieved'
+            : item.answeredStatus === 'relieved'
+            ? 'answered'
+            : 'praying';
+        return { ...item, answeredStatus: nextStatus };
+      })
+    );
+  };
+
+  const readEntryAloud = (entry: PrayerDiaryEntry) => {
+    if (!('speechSynthesis' in window)) return;
+    if (readingEntryId === entry.id) {
+      window.speechSynthesis.cancel();
+      setReadingEntryId(null);
+      return;
+    }
+    window.speechSynthesis.cancel();
+    setReadingEntryId(entry.id);
+
+    const speechText = `দোয়ার ডায়েরি। বিষয়: ${entry.hardshipTitle}। মনের অবস্থা: ${entry.feeling}। দোয়ার আরজি: ${entry.myDuaAndIntention}`;
+    const utterance = new SpeechSynthesisUtterance(speechText);
+    utterance.lang = 'bn-BD';
+    utterance.rate = 0.9;
+    utterance.onend = () => setReadingEntryId(null);
+    utterance.onerror = () => setReadingEntryId(null);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  return (
+    <section id="prayer-diary" className="py-14 px-4 sm:px-6 max-w-5xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
+        <div>
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-950 border border-emerald-800/60 rounded-full text-xs font-medium text-emerald-300 mb-2">
+            <BookHeart className="w-3.5 h-3.5 text-amber-400" />
+            <span>ব্যক্তিগত আমল ও আত্মিক ডায়রি</span>
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-bold font-serif-bn text-stone-100 mb-1">
+            ব্যক্তিগত দোয়ার ডায়েরি (Personal Prayer Diary)
+          </h2>
+          <p className="text-stone-400 text-xs sm:text-sm flex items-center gap-1.5">
+            <Lock className="w-3.5 h-3.5 text-emerald-400" />
+            <span>আপনার দোয়া ও অনুভূতিগুলো সম্পূর্ণ গোপনীয় এবং আপনার ডিভাইসেই সংরক্ষিত।</span>
+          </p>
+        </div>
+
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-stone-950 text-xs sm:text-sm font-bold rounded-xl shadow-lg transition-colors cursor-pointer"
+        >
+          <Plus className="w-4 h-4" />
+          <span>নতুন আরজি / দোয়া লিখুন</span>
+        </button>
+      </div>
+
+      {/* Diary Card Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {entries.map((entry) => (
+          <div
+            key={entry.id}
+            className="bg-stone-900/85 border border-stone-800 rounded-2xl p-5 flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <span className="text-stone-400 flex items-center gap-1 font-mono text-[11px]">
+                  <Clock className="w-3 h-3 text-emerald-400" />
+                  {entry.date}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => readEntryAloud(entry)}
+                    className="p-1.5 rounded-lg bg-stone-950 border border-stone-800 text-stone-400 hover:text-amber-400"
+                  >
+                    <Volume2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(entry.id)}
+                    className="p-1.5 rounded-lg bg-stone-950 border border-stone-800 text-stone-400 hover:text-rose-400"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              <h3 className="text-base font-bold font-serif-bn text-stone-100 mb-2 flex items-center gap-2">
+                <Heart className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span>{entry.hardshipTitle}</span>
+              </h3>
+
+              {entry.feeling && (
+                <div className="mb-3 text-xs text-stone-400 bg-stone-950/60 p-2.5 rounded-xl border border-stone-800/80">
+                  <span className="font-semibold text-stone-300 block mb-0.5">মনের অবস্থা:</span>
+                  <p className="italic text-stone-400 leading-relaxed">{entry.feeling}</p>
+                </div>
+              )}
+
+              <div className="mb-3">
+                <span className="text-xs font-semibold text-emerald-400 block mb-1">
+                  আল্লাহর দরবারে আরজি ও নিয়ত:
+                </span>
+                <p className="text-sm font-serif-bn text-stone-200 leading-relaxed bg-emerald-950/20 p-3 rounded-xl border border-emerald-900/40">
+                  “{entry.myDuaAndIntention}”
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-stone-800/80 flex items-center justify-between text-xs">
+              <button
+                onClick={() => toggleStatus(entry.id)}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-stone-800 text-amber-300 font-medium"
+              >
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                <span>
+                  {entry.answeredStatus === 'answered'
+                    ? 'আলহামদুলিল্লাহ (কবুল)'
+                    : entry.answeredStatus === 'relieved'
+                    ? 'মনে স্বস্তি এসেছে'
+                    : 'দোয়া অব্যাহত আছে'}
+                </span>
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
